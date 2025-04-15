@@ -9,7 +9,6 @@ This update enhances the video streaming service with an HTML5 video player inte
 ## Update Summary
 
 ```
-graph LR
     A[v1: API-only] --> B[v2: HTML Player + API]
     B --> C[Static File Serving]
 ```
@@ -52,9 +51,9 @@ app.get("/", (req, res) => {
 project/
 ├── src/
 │   └── index.js       # Updated with HTML interface
-├── videos/            # New directory
+├── videos/
 │   └── SampleVideo_1280x720_1mb.mp4
-└── Dockerfile         # Modified to include videos
+└── Dockerfile
 ```
 
 ---
