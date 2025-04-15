@@ -1,162 +1,124 @@
 # Video Streaming Microservice Deployment on Kubernetes
 
-This project demonstrates the deployment of a Node.js video streaming microservice to a Kubernetes cluster, covering containerization, cluster setup, deployment, and service exposure.
+## Version 2.0 Update Documentation
 
-## Table of Contents
+This update enhances the video streaming service with an HTML5 video player interface while maintaining the direct video streaming API.
 
-- [Prerequisites](#prerequisites)
-- [Step 1: Kubernetes Cluster Setup](#step-1-kubernetes-cluster-setup)
-- [Step 2: Docker Image Creation](#step-2-docker-image-creation)
-- [Step 3: Kubernetes Deployment](#step-3-kubernetes-deployment)
-- [Step 4: Kubernetes Service](#step-4-kubernetes-service)
-- [Accessing the Application](#accessing-the-application)
-- [Verification and Testing](#verification-and-testing)
-- [Troubleshooting](#troubleshooting)
+---
 
-## Prerequisites
+## Update Summary
 
-- Minikube installed ([installation guide](https://minikube.sigs.k8s.io/docs/start/))
-- Docker installed
-- kubectl configured
-- Node.js environment
+```
+graph LR
+    A[v1: API-only] --> B[v2: HTML Player + API]
+    B --> C[Static File Serving]
+```
 
-## Step 1: Kubernetes Cluster Setup
+## Key Changes in v2.0
 
-1. Start Minikube cluster:
+### 1. New Features
 
-   minikube start
+- Added HTML5 video player interface at root (`/`) endpoint
+- Maintained backward compatibility with `/video` API endpoint
+- Added CSS styling for the player page
 
-2. Verify cluster status:
+### 2. Code Changes
 
-   minikube status
-   kubectl cluster-info
+```
+// Added static file serving
+app.use("/videos", express.static(path.join(__dirname, "..", "videos")));
 
-## Step 2: Docker Image Creation
 
-1. Build the Docker image:
+// New HTML response
+app.get("/", (req, res) => {
+  res.send(`
+    <!DOCTYPE html>
+    <html>
+      <head><title>Video Page</title></head>
+      <body>
+        <h1>Hello</h1>
+        <video width="720" controls>
+          <source src="/videos/SampleVideo_1280x720_1mb.mp4" />
+        </video>
+      </body>
+    </html>
+  `);
+});
+```
 
-   docker build -t masonnia/video-streaming:latest .
+### 3. File Structure Changes
 
-2. Push to Docker Hub (optional for remote clusters):
+```
+project/
+├── src/
+│   └── index.js       # Updated with HTML interface
+├── videos/            # New directory
+│   └── SampleVideo_1280x720_1mb.mp4
+└── Dockerfile         # Modified to include videos
+```
 
-   docker push (docker login name)/video-streaming:latest
+---
 
-## Step 3: Kubernetes Deployment
+## Update Procedures
 
-1. Create `deployment.yaml`:
-   yaml
-   apiVersion: apps/v1
-   kind: Deployment
-   metadata:
-   name: video-streaming
-   spec:
-   replicas: 1
-   selector:
-   matchLabels:
-   app: video-streaming
-   template:
-   metadata:
-   labels:
-   app: video-streaming
-   spec:
-   containers: - name: video-streaming
-   image: (docker login name)/video-streaming:latest
-   ports: - containerPort: 80
-   env: - name: PORT
-   value: "80"
-   readinessProbe:
-   httpGet:
-   path: /
-   port: 80
-   initialDelaySeconds: 5
-   periodSeconds: 5
+### Step 1: Build and Push v2 Image
 
-2. Apply the deployment:
+```
+docker build -t masonnia/video-streaming:v2 .
+docker push masonnia/video-streaming:v2
+```
 
-   kubectl apply -f deployment.yaml
+### Step 2: Update Kubernetes Deployment
 
-## Step 4: Kubernetes Service
+```
+kubectl set image deployment/video-streaming video-streaming=masonnia/video-streaming:v2
+```
 
-1. Create `service.yaml`:
+### Step 3: Verify Resources
 
-   apiVersion: v1
-   kind: Service
-   metadata:
-   name: video-streaming-service
-   spec:
-   type: NodePort
-   selector:
-   app: video-streaming
-   ports: - protocol: TCP
-   port: 80
-   targetPort: 80
+```
+kubectl rollout status deployment/video-streaming
+kubectl get pods
+```
 
-2. Apply the service:
+---
 
-   kubectl apply -f service.yaml
+### Test HTML Interface
 
-## Accessing the Application
+```
+kubectl port-forward svc/video-streaming-service 8080:80
+```
 
-### Web Browser Access
+Open in browser: `http://localhost:8080`
 
-1. Get the service URL:
+Expected:
 
-   minikube service video-streaming-service --url
+- Page with "Hello" header
+- Functional video player with controls
 
-   Example: `http://192.168.49.2:30080`
+---
 
-2. Access endpoints:
-   - Health check: `/` (returns "OK")
-   - Video stream: `/video`
+## Access Endpoints
 
-### Command Line Access
+| Endpoint | Type | Description               |
+| -------- | ---- | ------------------------- |
+| `/`      | HTML | Video player interface    |
+| `/video` | API  | Direct video stream (MP4) |
 
-1. Port forwarding:
+---
 
-   kubectl port-forward svc/video-streaming-service 8080:80
+### Rollback Procedure
 
-   Access via `http://localhost:8080`
+```
+kubectl rollout undo deployment/video-streaming
+```
 
-2. Test with curl:
+---
 
-   curl http://$(minikube service video-streaming-service --url)/
-   curl http://$(minikube service video-streaming-service --url)/video --output video.mp4
+## Version History
 
-## Verification and Testing
-
-1. Verify deployment status:
-
-   kubectl get all -l app=video-streaming
-
-2. Check pod health:
-
-   kubectl get pods
-
-3. View application logs:
-
-   kubectl logs <pod-name>
-
-## Troubleshooting
-
-### Common Issues
-
-1. **ImagePullBackOff**:
-
-   - Verify image name in deployment.yaml
-   - Check Docker Hub credentials if using private repo
-
-2. **Readiness Probe Failing**:
-
-   - Check application logs for errors
-   - Verify the `/` endpoint returns HTTP 200
-   - Increase `initialDelaySeconds` if app starts slowly
-
-3. **Service Not Accessible**:
-   - Verify service type is NodePort/LoadBalancer
-   - Check Minikube tunnel is running (for LoadBalancer)
-
-### Diagnostic Commands
-
-kubectl describe pod <pod-name>
-kubectl describe service video-streaming-service
-minikube logs
+| Version | Changes                     |
+| ------- | --------------------------- |
+| v1.0    | Basic video streaming API   |
+| v2.0    | Added HTML player interface |
+|         | Static file serving         |
