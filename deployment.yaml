@@ -14,7 +14,7 @@ spec:
     spec:
       containers:
         - name: video-streaming
-          image: masonnia/video-streaming:latest
+          image: masonnia/video-streaming:v2
           ports:
             - containerPort: 80
           env:
